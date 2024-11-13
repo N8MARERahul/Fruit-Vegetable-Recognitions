@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Feed</title>
+</head>
+<body>
+    <h1>Live Video Feed</h1>
+    
+    <!-- Start and Stop buttons -->
+    <button id="startBtn" onclick="startStream()">Start</button>
+    <button id="stopBtn" onclick="stopStream()" disabled>Stop</button>
+
+    <!-- Video feed -->
+    <div id="video-container">
+        <img id="video-feed" src="" alt="Video feed will appear here" style="width: 100%; max-width: 640px; border: 2px solid black;">
+    </div>
+
+    <!-- Current detected object -->
+    <h2>Current Detection</h2>
+    <p id="current-detection">No detection</p>
+
+    <script>
+        function startStream() {
+            document.getElementById('video-feed').src = "{{ url_for('video_feed') }}";
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            // Start polling detection results
+            pollDetections();
+        }
+
+        function stopStream() {
+            document.getElementById('video-feed').src = "";
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('current-detection').textContent = "No detection";
+        }
+
+        function pollDetections() {
+            fetch('/current_detection')
+                .then(response => response.json())
+                .then(data => {
+                    const detectionDisplay = document.getElementById('current-detection');
+                    if (data) {
+                        // console.log(data);
+                        detectionDisplay.textContent = `${data.label}: ${data.score}%`;
+                    } else {
+                        detectionDisplay.textContent = "No detection";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            
+            // Poll every second if video feed is active
+            if (document.getElementById('video-feed').src) {
+                setTimeout(pollDetections, 1000);
+            }
+        }
+    </script>
+</body>
+</html>
