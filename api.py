@@ -1,13 +1,14 @@
 from flask import Flask, request, jsonify, Response, render_template
 import cv2
 from ultralytics import YOLO
-import json
+import pandas as pd
 
 app = Flask(__name__)
 
 
 try:
     model = YOLO("best.onnx", task="detect")
+    nutrition_data = pd.read_csv('vegetable_fruit_nutrition.csv')
 
 except Exception as e:
     print(e)
@@ -71,7 +72,20 @@ def current_detection():
         x1, y1, x2, y2, score, class_id = result
         if score > threshold:
             label = results.names[int(class_id)].upper()
-            return jsonify({"label": label, "score": round(score * 100)})
+            nutrition = nutrition_data.loc[nutrition_data['Item'].str.upper() == label]
+            if not nutrition.empty:
+                nutrition_info = nutrition.iloc[0].to_dict()
+                return jsonify({
+                    "label": label,
+                    "score": round(score * 100),
+                    "nutrition": nutrition_info
+                })
+            else:
+                return jsonify({
+                    "label": label,
+                    "score": round(score * 100),
+                    "nutrition": "No data available"
+                })
     
     return jsonify({"label": "No detection", "score": 0})
 
