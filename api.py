@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, Response, render_template
 import cv2
 from ultralytics import YOLO
 import pandas as pd
+import json
 
 app = Flask(__name__)
 
@@ -25,25 +26,43 @@ if not cap.isOpened():  # Error
 #     "label": "No detection",
 #     "score": 0
 # }
+current_detection = {"label": "No detection", "score": 0, "nutrition": {}}
 
 def generate_frames():
+    global current_detection
+    detection_found = False
     while True:
         ret, frame = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
+
         results = model(frame)[0]
         
         for result in results.boxes.data.tolist():
             x1, y1, x2, y2, score, class_id = result
             if score > threshold:
-                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 label = results.names[int(class_id)].upper()
-                # latest_detection["label"] = label
-                # latest_detection["score"] = round(score * 100)
+                nutrition = nutrition_data.loc[nutrition_data['Item'].str.upper() == label]
+                nutrition_info = nutrition.iloc[0].to_dict() if not nutrition.empty else {"nutrition": "No data available"}
+                
+                # Update shared detection result
+                current_detection = {
+                    "label": str(label),
+                    "score": round(score * 100),
+                    "nutrition": nutrition_info
+                }
+                print(nutrition_info)
+                detection_found = True
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(frame, results.names[int(class_id)].upper(), (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                    
 
+            else:
+                detection_found = False
+
+        if not detection_found:
+            current_detection = {"label": "No detection", "score": 0, "nutrition": {}}
+                    
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
 
@@ -54,40 +73,20 @@ def generate_frames():
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# @app.route('/current_detection')
-# def current_detection():
-#     # data = latest_detection
-#     # latest_detection["label"] = "No detection"
-#     # latest_detection["score"] = 0
-#     return jsonify(latest_detection)
-
 @app.route('/current_detection')
-def current_detection():
-    ret, frame = cap.read()
-    if not ret:
-        return jsonify({"label": "No detection", "score": 0})
+def current_detection_route():
 
-    results = model(frame)[0]
-    for result in results.boxes.data.tolist():
-        x1, y1, x2, y2, score, class_id = result
-        if score > threshold:
-            label = results.names[int(class_id)].upper()
-            nutrition = nutrition_data.loc[nutrition_data['Item'].str.upper() == label]
-            if not nutrition.empty:
-                nutrition_info = nutrition.iloc[0].to_dict()
-                return jsonify({
-                    "label": label,
-                    "score": round(score * 100),
-                    "nutrition": nutrition_info
-                })
-            else:
-                return jsonify({
-                    "label": label,
-                    "score": round(score * 100),
-                    "nutrition": "No data available"
-                })
-    
-    return jsonify({"label": "No detection", "score": 0})
+    global current_detection
+
+    current_detection_json = json.dumps(current_detection)
+    return jsonify(current_detection_json)
+
+    # return jsonify({
+    #     # "label": "current_detection[]",
+    #     "label": current_detection["label"],
+    #     "score": current_detection["score"],
+    #     # "nutrition": current_detection["nutrition"]
+    # })
 
 @app.route('/')
 def index():

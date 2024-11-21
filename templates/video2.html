@@ -44,7 +44,17 @@
                 .then(data => {
                     const detectionDisplay = document.getElementById('current-detection');
                     if (data) {
-                        // console.log(data);
+                        // console.log(data.label);
+                        try {
+                            data = JSON.parse(data);
+                        } catch (error) {
+                            data = {
+                                "label": "No detection",
+                                "score": 0,
+                                "nutrition": {}
+                            }
+                        }
+                        
                         detectionDisplay.textContent = `${data.label}: ${data.score}%`;
                     } else {
                         detectionDisplay.textContent = "No detection";
@@ -58,6 +68,7 @@
             if (document.getElementById('video-feed').src) {
                 setTimeout(pollDetections, 1000);
             }
+
         }
     </script>
 </body>
