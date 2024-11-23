@@ -6,3 +6,4 @@ Werkzeug==3.1.1
 panda
 onnx
 onnxruntime
+onnxruntime-gpu
