@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - Calorie Calculation of Fruits & Vegetables</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-custom {
+            background-image: url('{{ url_for("static", filename="img/BG_img.jpeg") }}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* animation */
+        .animate-bounce-slow {
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-custom bg-cover bg-center bg-no-repeat font-sans">
+    <div class="bg-black bg-opacity-70 min-h-screen flex items-center justify-center">
+        <div class="text-center p-12 bg-white bg-opacity-90 rounded-3xl shadow-2xl max-w-xl mx-6">
+
+            <div class="mb-8">
+                <h1 class="text-5xl text-red-600 font-extrabold mb-4 animate-pulse">Welcome!</h1>
+                <p class="text-xl text-gray-800 mb-4">
+                    Dive into the world of healthy eating. Discover the calorie details of your favorite fruits & vegetables in real time.
+                </p>
+            </div>
+            
+            <div class="flex justify-center items-center mb-8">
+                <div class="w-1/3 border-t-2 border-gray-300"></div>
+                <div class="mx-4 text-red-600 text-2xl font-bold">Explore</div>
+                <div class="w-1/3 border-t-2 border-gray-300"></div>
+            </div>
+
+            <a href="{{ url_for('detection') }}">
+                <button class="bg-gradient-to-r from-green-500 to-green-700 hover:from-green-700 hover:to-green-500 text-white py-4 px-10 rounded-full font-semibold shadow-lg transform transition-transform duration-300 hover:scale-105 animate-bounce-slow">
+                    Enter the Portal
+                </button>
+            </a>
+
+            <div class="mt-12">
+                <p class="text-gray-600 text-sm italic">"Healthy living starts with knowledge."</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

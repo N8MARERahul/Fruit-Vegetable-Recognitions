@@ -1,44 +1,100 @@
-import streamlit as st
+from flask import Flask, request, jsonify, Response, render_template
 import cv2
-import numpy as np
-from PIL import Image
+from ultralytics import YOLO
+import pandas as pd
+import json
 
-# Set the page configuration
-st.set_page_config(page_title="Calorie Calculation of Fruits & Vegetables", layout="centered")
+app = Flask(__name__)
 
-# Page title
-st.title("Calorie Calculation Of Fruits & Vegetables")
 
-# Instructions and main sections
-st.subheader("Scan your next object")
+try:
+    model = YOLO("best.onnx", task="detect")
+    nutrition_data = pd.read_csv('vegetable_fruit_nutrition.csv')
 
-# Webcam capture section
-st.write("### Scan your object here")
-img_file_buffer = st.camera_input()
+except Exception as e:
+    print(e)
 
-# Check if an image is uploaded or captured
-if img_file_buffer is not None:
-    # Load image from buffer and convert to OpenCV format
-    image = Image.open(img_file_buffer)
-    image = np.array(image)
+threshold = 0.5
 
-    # Display the captured image (for demonstration purposes)
-    st.image(image, caption="Captured Object", use_column_width=True)
+cap = cv2.VideoCapture(2)
 
-    # Example function to calculate calories (replace with actual model)
-    def calculate_calories(image):
-        # Placeholder for object detection and calorie calculation logic
-        return {"Object": "Carrot", "Calories per 10g": 4}
+if not cap.isOpened():  # Error
+    print("Could not open camera")
+    exit()
 
-    # Perform calorie calculation
-    result = calculate_calories(image)
-    
-    # Display the result
-    st.write("### Object Details")
-    st.write("**Name of the Object**:", result["Object"])
-    st.write("**Calories Calculated per 10 gm**:", result["Calories per 10g"], "kcal")
+# latest_detection = {
+#     "label": "No detection",
+#     "score": 0
+# }
+current_detection = {"label": "No detection", "score": 0, "nutrition": {}}
 
-    # Add spacing for layout aesthetics
-    st.markdown("---")
-else:
-    st.write("Please scan an object to calculate calories.")
+def generate_frames():
+    global current_detection
+    detection_found = False
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
+
+        results = model(frame)[0]
+        
+        for result in results.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = result
+            if score > threshold:
+                label = results.names[int(class_id)].upper()
+                nutrition = nutrition_data.loc[nutrition_data['Item'].str.upper() == label]
+                nutrition_info = nutrition.iloc[0].to_dict() if not nutrition.empty else {"nutrition": "No data available"}
+                
+                # Update shared detection result
+                current_detection = {
+                    "label": str(label),
+                    "score": round(score * 100),
+                    "nutrition": nutrition_info
+                }
+                print(nutrition_info)
+                detection_found = True
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                cv2.putText(frame, results.names[int(class_id)].upper(), (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+            else:
+                detection_found = False
+
+        if not detection_found:
+            current_detection = {"label": "No detection", "score": 0, "nutrition": {}}
+                    
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/current_detection')
+def current_detection_route():
+
+    global current_detection
+
+    current_detection_json = json.dumps(current_detection)
+    return jsonify(current_detection_json)
+
+    # return jsonify({
+    #     # "label": "current_detection[]",
+    #     "label": current_detection["label"],
+    #     "score": current_detection["score"],
+    #     # "nutrition": current_detection["nutrition"]
+    # })
+
+@app.route("/")
+def welcome():
+    return render_template("welcome.html")
+
+@app.route('/detection')
+def detection():
+    return render_template('video.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, host = "0.0.0.0", port=5000)
