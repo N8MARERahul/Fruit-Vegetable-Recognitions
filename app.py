@@ -13,6 +13,7 @@ try:
 
 except Exception as e:
     print(e)
+    exit()
 
 threshold = 0.5
 
@@ -80,13 +81,6 @@ def current_detection_route():
 
     current_detection_json = json.dumps(current_detection)
     return jsonify(current_detection_json)
-
-    # return jsonify({
-    #     # "label": "current_detection[]",
-    #     "label": current_detection["label"],
-    #     "score": current_detection["score"],
-    #     # "nutrition": current_detection["nutrition"]
-    # })
 
 @app.route("/")
 def welcome():
